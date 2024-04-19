@@ -4,9 +4,6 @@ import warnings
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from queue import Empty, Queue
-from threading import Event, Thread
-from time import perf_counter_ns
 
 import cv2
 import numpy as np

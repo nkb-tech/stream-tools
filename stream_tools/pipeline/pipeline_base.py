@@ -31,13 +31,9 @@ class BaseWorker:
         self.send = send
 
         # Streams
-        pass
         # Models
-        pass
         # Trackers
-        pass
         # Debug
-        pass
 
         self.pool.start()
 

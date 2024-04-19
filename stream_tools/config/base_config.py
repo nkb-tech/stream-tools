@@ -1,10 +1,3 @@
-import json
-import logging
-
-import pandas as pd
-import requests as re
-
-
 class BaseConfig():
 
     def __init__(self, cfg):

@@ -1,7 +1,4 @@
-#!/usr/bin/env python
-
 import logging
-import os
 import time
 from threading import Thread
 from typing import Union
@@ -89,7 +86,6 @@ class BaseStreamLoader:
 
     def close_source(self, source: Union[str, int]):
         # TODO check source and finish func
-        thread = self.threads[source]
         self.threads = self.threads[:source] + self.threads[source + 1:]
         self.imgs = self.imgs[:source] + self.imgs[source + 1:]
         self.imgs = self.imgs[:source] + self.imgs[source + 1:]

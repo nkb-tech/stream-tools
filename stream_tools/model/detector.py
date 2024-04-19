@@ -2,7 +2,6 @@ import logging
 from time import perf_counter_ns
 from typing import Any
 
-import cv2
 import numpy as np
 import torch
 from ultralytics import YOLO

@@ -1,6 +1,3 @@
-from datetime import datetime
-
-
 class MovementTracker:
 
     def __init__(self, object_id, timestamp, movement_threshold=5, log_file='movement_log.txt', disappear_time=10):
