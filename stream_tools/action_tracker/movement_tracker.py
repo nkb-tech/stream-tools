@@ -1,12 +1,6 @@
-from datetime import datetime
-
 class MovementTracker:
-    def __init__(self, 
-                 object_id, 
-                 timestamp,
-                 movement_threshold=5, 
-                 log_file='movement_log.txt',
-                 disappear_time=10):
+
+    def __init__(self, object_id, timestamp, movement_threshold=5, log_file='movement_log.txt', disappear_time=10):
         self.object_id = object_id
         self.movement_threshold = movement_threshold
         self.log_file = log_file
@@ -23,17 +17,15 @@ class MovementTracker:
             distance = self.calculate_distance(self.last_position, position)
             if distance > self.movement_threshold:
                 self.log_event(
-                    f"{self.object_id} moving {self.format_time(self.last_time)} : {self.format_time(timestamp)}"
-                )
+                    f'{self.object_id} moving {self.format_time(self.last_time)} : {self.format_time(timestamp)}')
             else:
                 self.log_event(
-                    f"{self.object_id} stationary {self.format_time(self.last_time)} : {self.format_time(timestamp)}"
-                )
+                    f'{self.object_id} stationary {self.format_time(self.last_time)} : {self.format_time(timestamp)}')
                 moving = False
         self.last_position = position
         self.last_time = timestamp
         return moving
-    
+
     # def update_position(self, position, timestamp):
     #     if self.last_position is not None:
     #         distance = self.calculate_distance(self.last_position, position)
@@ -59,7 +51,7 @@ class MovementTracker:
 
     def log_event(self, message):
         with open(self.log_file, 'a') as file:
-            file.write(f"{message}\n")
+            file.write(f'{message}\n')
 
     @staticmethod
     def calculate_distance(pos1, pos2):
@@ -67,11 +59,11 @@ class MovementTracker:
 
     @staticmethod
     def format_time(timestamp):
-        return timestamp.isoformat("T", "milliseconds").replace(
-            ":", "_"
-        ).replace('.', '_')
+        return timestamp.isoformat('T', 'milliseconds').replace(':', '_').replace('.', '_')
+
 
 class MultiCameraMovementTracker:
+
     def __init__(self, movement_threshold=5, log_file='movement_log.txt'):
         self.movement_threshold = movement_threshold
         self.log_file = log_file
@@ -80,11 +72,8 @@ class MultiCameraMovementTracker:
     def update_position(self, camera_id, object_id, object_class, position, timestamp):
         unique_id = (camera_id, object_id, object_class)
         if unique_id not in self.trackers:
-            self.trackers[unique_id] = MovementTracker(
-                object_id=unique_id, 
-                timestamp=timestamp,
-                movement_threshold=self.movement_threshold, 
-                log_file=self.log_file)
-        return self.trackers[unique_id].update_position(
-            position,
-            timestamp)
+            self.trackers[unique_id] = MovementTracker(object_id=unique_id,
+                                                       timestamp=timestamp,
+                                                       movement_threshold=self.movement_threshold,
+                                                       log_file=self.log_file)
+        return self.trackers[unique_id].update_position(position, timestamp)

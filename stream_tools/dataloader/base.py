@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-
-import os
 import logging
 import time
 from threading import Thread
@@ -8,23 +5,20 @@ from typing import Union
 
 import cv2
 
-
-
 logger = logging.getLogger(__name__)
+
 
 class BaseStreamLoader:
     """BaseStreamLoader, i.e. `#RTSP, RTMP, HTTP streams`."""
-    
-    def __init__(
-        self, 
-        sources: list,
-        buffer_length: Union[str, int] = 10,
-        vid_fps: Union[str, int] = "auto",
-        max_first_attempts_to_reconnect: int = 30,
-        first_wait_time: float = 0.1,
-        second_wait_time: float = 60,
-        **kwargs
-    ) -> "BaseStreamLoader":
+
+    def __init__(self,
+                 sources: list,
+                 buffer_length: Union[str, int] = 10,
+                 vid_fps: Union[str, int] = 'auto',
+                 max_first_attempts_to_reconnect: int = 30,
+                 first_wait_time: float = 0.1,
+                 second_wait_time: float = 60,
+                 **kwargs) -> 'BaseStreamLoader':
         """Initialize stream loading threads from sources according to arguments
         Args:
             sources: a list of links to video streams
@@ -39,9 +33,7 @@ class BaseStreamLoader:
         # Save arguments
         self.buffer_length = buffer_length  # max buffer length
         self.vid_fps = vid_fps
-        self.max_first_attempts_to_reconnect = (
-            max_first_attempts_to_reconnect
-        )
+        self.max_first_attempts_to_reconnect = (max_first_attempts_to_reconnect)
         self.first_wait_time = first_wait_time
         self.second_wait_time = second_wait_time
         self.running = True  # running flag for Thread
@@ -56,8 +48,7 @@ class BaseStreamLoader:
         self.shape = [[] for _ in range(self.n)]
         self.caps = [None] * self.n  # video capture objects
         self.started = [0] * self.n
-        
-        
+
     def initialize(self):
         # Create a thread for each source and start it
         for i, s in enumerate(self.sources):  # index, source
@@ -68,18 +59,13 @@ class BaseStreamLoader:
                 daemon=True,
             )
             self.threads[i].start()
-        self.new_fps = (
-            min(self.fps)
-            if isinstance(self.vid_fps, str) and self.vid_fps == "auto"
-            else self.vid_fps
-        )  # fps alignment
-        logger.info("")  # newline
-    
-    
+        self.new_fps = (min(self.fps) if isinstance(self.vid_fps, str) and self.vid_fps == 'auto' else self.vid_fps
+                        )  # fps alignment
+        logger.info('')  # newline
+
     @property
     def bs(self):
         return self.__len__()
-        
 
     def add_source(self, source: str):
         i = len(self.threads)
@@ -90,56 +76,43 @@ class BaseStreamLoader:
         self.shape.append([])
         self.caps.append(None)
         self.started.append(0)
-        self.threads.append(
-            Thread(
-                target=self.update,
-                args=([i, source]),
-                daemon=True,
-            )
-        )
+        self.threads.append(Thread(
+            target=self.update,
+            args=([i, source]),
+            daemon=True,
+        ))
         self.threads[i].start()
         return i
-        
+
     def close_source(self, source: Union[str, int]):
         # TODO check source and finish func
-        thread = self.threads[source]
-        self.threads = self.threads[:source] + self.threads[source+1:]
-        self.imgs = self.imgs[:source] + self.imgs[source+1:]
-        self.imgs = self.imgs[:source] + self.imgs[source+1:]
-        self.imgs = self.imgs[:source] + self.imgs[source+1:]
+        self.threads = self.threads[:source] + self.threads[source + 1:]
+        self.imgs = self.imgs[:source] + self.imgs[source + 1:]
+        self.imgs = self.imgs[:source] + self.imgs[source + 1:]
+        self.imgs = self.imgs[:source] + self.imgs[source + 1:]
         if self.threads[source].is_alive():
             self.threads[source].join(timeout=5)  # Add timeout
-        
 
     def update(self, i, source):
-        raise NotImplementedError("Implement update function in stream loader class")
-    
-    
+        raise NotImplementedError('Implement update function in stream loader class')
+
     def close(self):
         """Close stream loader and release resources."""
         self.running = False  # stop flag for Thread
         for thread in self.threads:
             if thread.is_alive():
                 thread.join(timeout=5)  # Add timeout
-        for (
-            cap
-        ) in (
-            self.caps
-        ):  # Iterate through the stored VideoCapture objects
+        for (cap) in (self.caps):  # Iterate through the stored VideoCapture objects
             try:
                 cap.release()  # release video capture
             except Exception as e:
-                logger.warning(
-                    f"WARNING ⚠️ Could not release VideoCapture object: {e}"
-                )
+                logger.warning(f'WARNING ⚠️ Could not release VideoCapture object: {e}')
         # cv2.destroyAllWindows()
-    
-    
+
     def __iter__(self):
         """Iterates through image feed and re-opens unresponsive streams."""
         self.count = -1
         return self
-
 
     def __next__(self):
         """Returns original images for processing."""
@@ -152,11 +125,7 @@ class BaseStreamLoader:
         for i, x in enumerate(self.imgs):
             # If image is not available
             if not x:
-                if not self.threads[i].is_alive() or cv2.waitKey(
-                    1
-                ) == ord(
-                    "q"
-                ):  # q to quit
+                if not self.threads[i].is_alive() or cv2.waitKey(1) == ord('q'):  # q to quit
                     self.close()
                     raise StopIteration
                 # logger.warning(f"WARNING ⚠️ Waiting for stream {i}")
@@ -172,6 +141,4 @@ class BaseStreamLoader:
 
     def __len__(self):
         """Return the length of the sources object."""
-        return len(
-            self.sources
-        )  # 1E12 frames = 32 streams at 30 FPS for 30 years
+        return len(self.sources)  # 1E12 frames = 32 streams at 30 FPS for 30 years

@@ -1,40 +1,38 @@
 #!/usr/bin/env python
 
+import json
 import logging
 import time
 from collections import deque
-import requests as re
-import json
 from typing import Union
 
 import cv2
+import requests as re
 
 from stream_tools.dataloader import BaseStreamLoader
 
 logger = logging.getLogger(__name__)
 
-try: 
-    from tensor_stream import TensorStreamConverter, FourCC, Planes, FrameRate
+try:
+    from tensor_stream import FourCC, FrameRate, Planes, TensorStreamConverter
 except ImportError:  # package not installed, skip
     pass
 
 
 class IvideonStreamLoader(BaseStreamLoader):
-    
-    def __init__(
-        self, 
-        sources: list,
-        buffer_length: Union[str, int] = 10,
-        vid_fps: Union[str, int] = "auto",
-        max_first_attempts_to_reconnect: int = 30,
-        first_wait_time: float = 0.1,
-        second_wait_time: float = 60,
-        api_url: str = "",
-        api_args: str = "",
-        access_token: str = "",
-        **kwargs
-    ) -> "IvideonStreamLoader":
-        
+
+    def __init__(self,
+                 sources: list,
+                 buffer_length: Union[str, int] = 10,
+                 vid_fps: Union[str, int] = 'auto',
+                 max_first_attempts_to_reconnect: int = 30,
+                 first_wait_time: float = 0.1,
+                 second_wait_time: float = 60,
+                 api_url: str = '',
+                 api_args: str = '',
+                 access_token: str = '',
+                 **kwargs) -> 'IvideonStreamLoader':
+
         self.api_url = api_url
         self.api_args = api_args
         self.access_token = access_token
@@ -46,7 +44,7 @@ class IvideonStreamLoader(BaseStreamLoader):
             first_wait_time,
             second_wait_time,
         )
-    
+
     def _get_ivideon_link(self, s):
         url = f'{self.api_url}cameras/{s}/{self.api_args}&access_token={self.access_token}'
         resp = re.get(url)
@@ -55,12 +53,12 @@ class IvideonStreamLoader(BaseStreamLoader):
             return None
         stream_url = json.loads(resp.text)['result']['url']
         return stream_url
-    
+
     def update(self, i, stream):
         """Read stream `i` frames in daemon thread."""
         link = None
         attempt = 0
-        st = f"{i + 1}/{self.n}: {stream}... "
+        st = f'{i + 1}/{self.n}: {stream}... '
         w, h = 0, 0
         while link is None or self.caps[i] is None:
             link = self._get_ivideon_link(stream)
@@ -74,16 +72,12 @@ class IvideonStreamLoader(BaseStreamLoader):
             try:
                 cap = cv2.VideoCapture(link)
             except Exception as ex:
-                logger.warning(
-                    f"Video stream {i} is unresponsive on start: {ex}, reconnecting..."
-                )
+                logger.warning(f'Video stream {i} is unresponsive on start: {ex}, reconnecting...')
                 continue
             self.caps[i] = cap
             success, im = self.caps[i].read()  # guarantee first frame
             if not success or im is None:
-                logger.warning(
-                    f"{st}Failed to read images from {stream}"
-                )
+                logger.warning(f'{st}Failed to read images from {stream}')
                 attempt += 1
                 continue
             w = int(self.caps[i].get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -98,58 +92,48 @@ class IvideonStreamLoader(BaseStreamLoader):
         buf = deque(maxlen=self.buffer_length)
         buf.append(im)
         self.imgs[i] = buf
-        logger.info(
-                f"{st}Success ✅ ({self.frames[i]} frames of shape {w}x{h} at {self.fps[i]:.2f} FPS)"
-            )
-        
+        logger.info(f'{st}Success ✅ ({self.frames[i]} frames of shape {w}x{h} at {self.fps[i]:.2f} FPS)')
+
         n, f = 0, self.frames[i]  # frame number, frame array
         while self.running and n < (f - 1):
-            success = (
-                cap.grab()
-            )  # .read() = .grab() followed by .retrieve()
+            success = (cap.grab())  # .read() = .grab() followed by .retrieve()
             im = self.imgs[i][-1]
             if not success:
-                logger.warning(
-                    f"WARNING ⚠️ Video stream {i} unresponsive, please check your IP camera connection."
-                )
+                logger.warning(f'WARNING ⚠️ Video stream {i} unresponsive, please check your IP camera connection.')
                 if attempt < self.max_first_attempts_to_reconnect:
                     time.sleep(self.first_wait_time)
                 else:
                     time.sleep(self.second_wait_time)
                 attempt += 1
                 reopen_status = cap.open(self._get_ivideon_link(self.sources[i]))  # re-open stream if signal was lost
-                logger.info(
-                    f"Attemp to re-open video stream {i}, result: {reopen_status}"
-                )
+                logger.info(f'Attemp to re-open video stream {i}, result: {reopen_status}')
             else:
                 success, im = cap.retrieve()
                 if not success:
                     im = None
-                    logger.warning(
-                        f"WARNING ⚠️ Cannot decode image from video stream {i}. Unknown error."
-                    )
+                    logger.warning(f'WARNING ⚠️ Cannot decode image from video stream {i}. Unknown error.')
             self.imgs[i].append(im)
             n += 1
         else:
-            logger.info(f"End of stream {i}.")
+            logger.info(f'End of stream {i}.')
 
 
 class GPUIvideonStreamLoader(IvideonStreamLoader):
-    
+
     def __init__(
-        self, 
+        self,
         sources: list,
         buffer_length: Union[str, int] = 10,
-        vid_fps: Union[str, int] = "auto",
+        vid_fps: Union[str, int] = 'auto',
         max_first_attempts_to_reconnect: int = 30,
         first_wait_time: float = 0.1,
         second_wait_time: float = 60,
-        api_url: str = "",
-        api_args: str = "",
-        access_token: str = "",
+        api_url: str = '',
+        api_args: str = '',
+        access_token: str = '',
         cuda_device: int = 0,
-    ) -> "IvideonStreamLoader":
-        
+    ) -> 'IvideonStreamLoader':
+
         self.api_url = api_url
         self.api_args = api_args
         self.access_token = access_token
@@ -162,13 +146,12 @@ class GPUIvideonStreamLoader(IvideonStreamLoader):
             first_wait_time,
             second_wait_time,
         )
-        
-        
+
     def update(self, i, stream):
         """Read stream `i` frames in daemon thread."""
         link = None
         attempt = 0
-        st = f"{i + 1}/{self.n}: {stream}... "
+        st = f'{i + 1}/{self.n}: {stream}... '
         w, h = 0, 0
         while link is None or self.caps[i] is None:
             link = self._get_ivideon_link(stream)
@@ -181,18 +164,16 @@ class GPUIvideonStreamLoader(IvideonStreamLoader):
                 continue
             try:
                 cap = TensorStreamConverter(
-                    stream, 
+                    stream,
                     cuda_device=self.cuda_device,
                     max_consumers=1,
                     buffer_size=self.buffer_length,
                     framerate_mode=FrameRate.NATIVE_LOW_DELAY,
-                    )
+                )
                 cap.initialize()
                 cap.start()
             except Exception as ex:
-                logger.warning(
-                    f"Video stream {i} is unresponsive on start: {ex}, reconnecting..."
-                )
+                logger.warning(f'Video stream {i} is unresponsive on start: {ex}, reconnecting...')
                 continue
             self.caps[i] = cap
             w = int(self.caps[i].frame_size[0])
@@ -202,17 +183,13 @@ class GPUIvideonStreamLoader(IvideonStreamLoader):
                 self.caps[i] = None
                 continue
             try:
-                im = self.caps[i].read(
-                    width=w,
-                    height=h,
-                    pixel_format=FourCC.RGB24,
-                    planes_pos=Planes.PLANAR,
-                    normalization=True
-                    )  # guarantee first frame
+                im = self.caps[i].read(width=w,
+                                       height=h,
+                                       pixel_format=FourCC.RGB24,
+                                       planes_pos=Planes.PLANAR,
+                                       normalization=True)  # guarantee first frame
             except Exception as err:
-                logger.warning(
-                    f"{st}Failed to read images from {stream}: {err}"
-                )
+                logger.warning(f'{st}Failed to read images from {stream}: {err}')
                 attempt += 1
                 self.caps[i] = None
                 continue
@@ -226,53 +203,45 @@ class GPUIvideonStreamLoader(IvideonStreamLoader):
         buf = deque(maxlen=self.buffer_length)
         buf.append(im)
         self.imgs[i] = buf
-        logger.info(
-                f"{st}Success ✅ ({self.frames[i]} frames of shape {w}x{h} at {self.fps[i]:.2f} FPS)"
-            )
-        
+        logger.info(f'{st}Success ✅ ({self.frames[i]} frames of shape {w}x{h} at {self.fps[i]:.2f} FPS)')
+
         n, f = 0, self.frames[i]  # frame number, frame array
         while self.running and n < (f - 1):
             try:
-                im = self.caps[i].read(
-                    width=w,
-                    height=h,
-                    pixel_format=FourCC.RGB24,
-                    planes_pos=Planes.PLANAR,
-                    normalization=True
-                    )  # guarantee first frame
+                im = self.caps[i].read(width=w,
+                                       height=h,
+                                       pixel_format=FourCC.RGB24,
+                                       planes_pos=Planes.PLANAR,
+                                       normalization=True)  # guarantee first frame
                 success = True
             except:
                 im = self.imgs[i][-1]
                 success = False
             if not success:
-                logger.warning(
-                    f"WARNING ⚠️ Video stream {i} unresponsive, please check your IP camera connection."
-                )
+                logger.warning(f'WARNING ⚠️ Video stream {i} unresponsive, please check your IP camera connection.')
                 if attempt < self.max_first_attempts_to_reconnect:
                     time.sleep(self.first_wait_time)
                 else:
                     time.sleep(self.second_wait_time)
                 attempt += 1
                 self.caps[i] = TensorStreamConverter(
-                    self._get_ivideon_link(self.sources[i]), 
+                    self._get_ivideon_link(self.sources[i]),
                     cuda_device=self.cuda_device,
                     max_consumers=1,
                     buffer_size=self.buffer_length,
                     framerate_mode=FrameRate.NATIVE_LOW_DELAY,
-                    )
+                )
                 try:
                     cap.initialize()
-                    cap.start() # re-open stream if signal was lost
+                    cap.start()  # re-open stream if signal was lost
                 except Exception as err:
                     self.caps[i] = None
                     attempt += 1
                     continue
                 else:
                     err = True
-                logger.info(
-                    f"Attemp to re-open video stream {i}, result: {err}"
-                )
+                logger.info(f'Attemp to re-open video stream {i}, result: {err}')
             self.imgs[i].append(im)
             n += 1
         else:
-            logger.info(f"End of stream {i}.")
+            logger.info(f'End of stream {i}.')

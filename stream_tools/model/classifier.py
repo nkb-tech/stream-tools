@@ -10,9 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class YoloClassifier:
+
     def __init__(self, cfg, device):
         # TODO add zones
-        self.model = YOLO(model=cfg["model_path"], task="classify")
+        self.model = YOLO(model=cfg['model_path'], task='classify')
         self.device = device
         self.cfg = cfg
         # Dummy inference for model warmup
@@ -21,27 +22,25 @@ class YoloClassifier:
                 np.random.randint(
                     low=0,
                     high=255,
-                    size=(cfg["orig_img_h"], cfg["orig_img_w"], 3),
+                    size=(cfg['orig_img_h'], cfg['orig_img_w'], 3),
                     dtype=np.uint8,
-                )
-                for _ in range(cfg["inference_bs"])
-            ]
+                ) for _ in range(cfg['inference_bs'])]
             self.model(
                 source=dummy_imgs,
                 device=self.device,
-                imgsz=cfg["inference_imgsz"],
+                imgsz=cfg['inference_imgsz'],
                 # conf=cfg["inference_conf"],
                 stream=False,
                 verbose=False,
                 half=True,
             )
-        self.time_logging_period = cfg["time_logging_period"]
+        self.time_logging_period = cfg['time_logging_period']
         self.n_calls = -1
 
     @property
     def names(self):
         return self.model.names
-    
+
     def __call__(self, imgs: list) -> Any:
         self.n_calls += 1
         return self.inference(imgs)
@@ -60,12 +59,12 @@ class YoloClassifier:
             h, w, _ = imgs[i].shape
             correct_frame_idx.append(i)
             if (h, w) != (
-                self.cfg["orig_img_h"],
-                self.cfg["orig_img_w"],
+                    self.cfg['orig_img_h'],
+                    self.cfg['orig_img_w'],
             ):
                 imgs[i] = cv2.resize(
                     imgs[i],
-                    (self.cfg["orig_img_w"], self.cfg["orig_img_h"]),
+                    (self.cfg['orig_img_w'], self.cfg['orig_img_h']),
                     # Default YOLO interpolation
                     interpolation=cv2.INTER_AREA,
                 )
@@ -73,7 +72,7 @@ class YoloClassifier:
         results = self.model(
             source=imgs_to_infer,
             device=self.device,
-            imgsz=self.cfg["inference_imgsz"],
+            imgsz=self.cfg['inference_imgsz'],
             # conf=self.cfg["inference_conf"],
             stream=False,
             verbose=False,
@@ -88,7 +87,5 @@ class YoloClassifier:
         time_spent_ns = end_time_ns - start_time_ns
         time_spent_ms = time_spent_ns / 1e6
         if self.n_calls % self.time_logging_period == 0:
-            logger.info(
-                f"Classifier inference on {len(imgs)} images took {time_spent_ms:.1f} ms"
-            )
+            logger.info(f'Classifier inference on {len(imgs)} images took {time_spent_ms:.1f} ms')
         return (preds[0], confs[0]) if single else (preds, confs)

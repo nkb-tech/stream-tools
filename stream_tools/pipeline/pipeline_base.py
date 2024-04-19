@@ -1,18 +1,19 @@
 import argparse
-from pathlib import Path
-from datetime import datetime
-import pytz
 import logging
 import warnings
+from datetime import datetime
+from pathlib import Path
 from queue import Empty, Queue
 from threading import Event, Thread
-warnings.filterwarnings("ignore")
 
-TIMEZONE = pytz.timezone(
-    "Europe/Moscow"
-)  # UTC, Asia/Shanghai, Europe/Berlin
+import pytz
+
+warnings.filterwarnings('ignore')
+
+TIMEZONE = pytz.timezone('Europe/Moscow')  # UTC, Asia/Shanghai, Europe/Berlin
 
 logger = logging.getLogger(__name__)
+
 
 def timetz(*args):
     return datetime.now(TIMEZONE).timetuple()
@@ -21,9 +22,7 @@ def timetz(*args):
 class BaseWorker:
     _TIMEOUT = 2
 
-    def __init__(self, 
-                 send: bool = False,
-                 debug: bool = False):
+    def __init__(self, send: bool = False, debug: bool = False):
         # Init separate process
         self.queue = Queue(maxsize=30)
         self.done = Event()
@@ -32,13 +31,9 @@ class BaseWorker:
         self.send = send
 
         # Streams
-        pass
         # Models
-        pass
         # Trackers
-        pass
         # Debug
-        pass
 
         self.pool.start()
 
@@ -74,16 +69,17 @@ class BaseWorker:
                 self.log_debug(timestamp, results, imgs)
             if self.send:
                 self.send_results(timestamp, results, imgs)
-                
+
         except Exception:
-            import ipdb; ipdb.set_trace()
-    
+            import ipdb
+            ipdb.set_trace()
+
     def pipeline(self, imgs):
         raise NotImplementedError
 
     def log_debug(self, timestamp, results, imgs):
         raise NotImplementedError
-    
+
     def send_results(timestamp, results, imgs):
         raise NotImplementedError
 
@@ -91,19 +87,17 @@ class BaseWorker:
 def base_main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-s",
-        "--send",
-        action="store_true",
-        help="Send results via API or put them into DB",
+        '-s',
+        '--send',
+        action='store_true',
+        help='Send results via API or put them into DB',
     )
+    parser.add_argument('-log', '--log_path', type=str, help='Logging path')
     parser.add_argument(
-        "-log", "--log_path", type=str, help="Logging path"
-    )
-    parser.add_argument(
-        "-d",
-        "--debug",
-        action="store_true",
-        help="Debug mode, that save images and predictions",
+        '-d',
+        '--debug',
+        action='store_true',
+        help='Debug mode, that save images and predictions',
     )
     args = parser.parse_args()
     send = args.send
@@ -113,14 +107,13 @@ def base_main():
     logging.basicConfig(
         level=logging.DEBUG,
         filename=f"{log_path}/{TIMEZONE.localize(datetime.now()).isoformat('T', 'seconds').replace(':', '_')}_logs.log",
-        filemode="w",
-        format="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        filemode='w',
+        format='%(asctime)s %(levelname)s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
     )
     worker = BaseWorker(send, debug)
     worker.run()
-    
+
 
 if __name__ == '__main__':
     base_main()
-        
