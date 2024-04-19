@@ -11,12 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 class Detector:
+
     def __init__(self, cfg):
         # TODO add zones
-        self.model = YOLO(model=cfg["model_path"], task="detect")
+        self.model = YOLO(model=cfg['model_path'], task='detect')
         self.device = torch.device(cfg['device'])
         self.cfg = cfg
-    
+
     def initialize(self):
         # Dummy inference for model warmup
         for _ in range(100):
@@ -24,27 +25,25 @@ class Detector:
                 np.random.randint(
                     low=0,
                     high=255,
-                    size=(self.cfg["orig_img_h"], self.cfg["orig_img_w"], 3),
+                    size=(self.cfg['orig_img_h'], self.cfg['orig_img_w'], 3),
                     dtype=np.uint8,
-                )
-                for _ in range(self.cfg["inference_bs"])
-            ]
+                ) for _ in range(self.cfg['inference_bs'])]
             self.model(
                 source=dummy_imgs,
                 device=self.device,
-                imgsz=self.cfg["inference_imgsz"],
-                conf=self.cfg["inference_conf"],
+                imgsz=self.cfg['inference_imgsz'],
+                conf=self.cfg['inference_conf'],
                 stream=False,
                 verbose=False,
                 half=True,
             )
-        self.time_logging_period = self.cfg["time_logging_period"]
+        self.time_logging_period = self.cfg['time_logging_period']
         self.n_calls = -1
 
     @property
     def names(self):
         return self.model.names
-    
+
     def __call__(self, imgs: list) -> Any:
         self.n_calls += 1
         return self.inference(imgs)
@@ -73,8 +72,8 @@ class Detector:
         results = self.model(
             source=imgs_to_infer,
             device=self.device,
-            imgsz=self.cfg["inference_imgsz"],
-            conf=self.cfg["inference_conf"],
+            imgsz=self.cfg['inference_imgsz'],
+            conf=self.cfg['inference_conf'],
             stream=False,
             verbose=False,
             half=True,
@@ -86,7 +85,5 @@ class Detector:
         time_spent_ns = end_time_ns - start_time_ns
         time_spent_ms = time_spent_ns / 1e6
         if self.n_calls % self.time_logging_period == 0:
-            logger.info(
-                f"Detector inference on {len(correct_frame_idx)} images took {time_spent_ms:.1f} ms"
-            )
+            logger.info(f'Detector inference on {len(correct_frame_idx)} images took {time_spent_ms:.1f} ms')
         return dets

@@ -1,0 +1,25 @@
+services:
+  cv_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.cuda
+    image: x86_64/stream_tools:1.0.0
+    command: bash
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    container_name: stream_tools
+    shm_size: '2gb'
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          memory: 10G
+          devices:
+            - driver: nvidia
+              device_ids: ['0']
+              capabilities: [gpu]
+    environment:
+      - OMP_NUM_THREADS=1
+      - MKL_THREADING_LAYER=GNU
+      - NVIDIA_DRIVER_CAPABILITIES=video,compute,utility
