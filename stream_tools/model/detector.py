@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 class Detector:
     def __init__(self, cfg):
-        # TODO add zones
         self.model = YOLO(model=cfg["model_path"], task="detect")
         self.device = torch.device(cfg['device'])
         self.cfg = cfg
+        self.classes = self.cfg.get('classes', None)
     
     def initialize(self):
         # Dummy inference for model warmup
@@ -37,6 +37,7 @@ class Detector:
                 stream=False,
                 verbose=False,
                 half=True,
+                classes=self.classes
             )
         self.time_logging_period = self.cfg["time_logging_period"]
         self.n_calls = -1
@@ -55,18 +56,7 @@ class Detector:
         for i in range(len(imgs)):
             if imgs[i] is None:
                 continue
-            # h, w, _ = imgs[i].shape
             correct_frame_idx.append(i)
-            # if (h, w) != (
-            #     self.cfg["orig_img_h"],
-            #     self.cfg["orig_img_w"],
-            # ):
-            #     imgs[i] = cv2.resize(
-            #         imgs[i],
-            #         (self.cfg["orig_img_w"], self.cfg["orig_img_h"]),
-            #         # Default YOLO interpolation
-            #         interpolation=cv2.INTER_AREA,
-            #     )
         imgs_to_infer = [imgs[j] for j in correct_frame_idx]
         if len(imgs_to_infer) == 0:
             return []
@@ -78,6 +68,7 @@ class Detector:
             stream=False,
             verbose=False,
             half=True,
+            classes=self.classes
         )
         dets = [[] for _ in range(len(imgs))]
         for idx, det in zip(correct_frame_idx, results):

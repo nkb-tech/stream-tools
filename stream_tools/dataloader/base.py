@@ -57,6 +57,8 @@ class BaseStreamLoader:
         self.caps = [None] * self.n  # video capture objects
         self.started = [0] * self.n
         
+        self.times = {i: [] for i in range(len(sources))}
+        
         
     def initialize(self):
         # Create a thread for each source and start it
@@ -130,7 +132,7 @@ class BaseStreamLoader:
                 cap.release()  # release video capture
             except Exception as e:
                 logger.warning(
-                    f"WARNING ⚠️ Could not release VideoCapture object: {e}"
+                    f"Could not release VideoCapture object: {e}"
                 )
         # cv2.destroyAllWindows()
     

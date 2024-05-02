@@ -33,29 +33,6 @@ class MovementTracker:
         self.last_position = position
         self.last_time = timestamp
         return moving
-    
-    # def update_position(self, position, timestamp):
-    #     if self.last_position is not None:
-    #         distance = self.calculate_distance(self.last_position, position)
-    #         if distance > self.movement_threshold:
-    #             if not self.is_moving:
-    #                 self.is_moving = True
-    #                 self.last_time_moved = timestamp
-    #                 if self.last_time_stationary:
-    #                     self.log_event(
-    #                         f"{self.object_id} stationary {self.format_time(self.last_time_stationary)} : {self.format_time(timestamp)}"
-    #                         )
-    #             self.last_position = position
-    #             self.log_event(f"f{self.object_id} moving {self.format_time(self.last_time)} : {self.format_time(timestamp)}")
-    #         else:
-    #             if self.is_moving:
-    #                 self.is_moving = False
-    #                 self.last_time_stationary = timestamp
-    #                 self.log_event(f"{self.object_id} started moving at {self.format_time(self.last_time_moved)}")
-    #     else:
-    #         self.last_position = position
-    #     self.last_time = timestamp
-    #     return self.is_moving
 
     def log_event(self, message):
         with open(self.log_file, 'a') as file:

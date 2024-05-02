@@ -1,3 +1,4 @@
 from stream_tools.dataloader.base import BaseStreamLoader
 from stream_tools.dataloader.opencv_loader import OpenCVLoader
 from stream_tools.dataloader.ivideon_loader import IvideonStreamLoader, GPUIvideonStreamLoader
+from stream_tools.dataloader.cpu_loader import CPUStreamLoader

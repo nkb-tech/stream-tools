@@ -110,7 +110,7 @@ class IvideonStreamLoader(BaseStreamLoader):
             im = self.imgs[i][-1]
             if not success:
                 logger.warning(
-                    f"WARNING ⚠️ Video stream {i} unresponsive, please check your IP camera connection."
+                    f"⚠️ Video stream {i} unresponsive, please check your IP camera connection."
                 )
                 if attempt < self.max_first_attempts_to_reconnect:
                     time.sleep(self.first_wait_time)
@@ -126,7 +126,7 @@ class IvideonStreamLoader(BaseStreamLoader):
                 if not success:
                     im = None
                     logger.warning(
-                        f"WARNING ⚠️ Cannot decode image from video stream {i}. Unknown error."
+                        f"⚠️ Cannot decode image from video stream {i}. Unknown error."
                     )
             self.imgs[i].append(im)
             n += 1
@@ -246,7 +246,7 @@ class GPUIvideonStreamLoader(IvideonStreamLoader):
                 success = False
             if not success:
                 logger.warning(
-                    f"WARNING ⚠️ Video stream {i} unresponsive, please check your IP camera connection."
+                    f"⚠️ Video stream {i} unresponsive, please check your IP camera connection."
                 )
                 if attempt < self.max_first_attempts_to_reconnect:
                     time.sleep(self.first_wait_time)

@@ -6,6 +6,7 @@ import logging
 import warnings
 from queue import Empty, Queue
 from threading import Event, Thread
+from time import perf_counter_ns
 warnings.filterwarnings("ignore")
 
 TIMEZONE = pytz.timezone(
@@ -30,6 +31,8 @@ class BaseWorker:
         self.pool = Thread(target=self.worker, daemon=True)
         self.debug = debug
         self.send = send
+        self.pipeline_n_calls = 0
+        # self.pipeline_time_logging_period = 1000 # default, overwrite from config
 
         # Streams
         pass
@@ -41,6 +44,12 @@ class BaseWorker:
         pass
 
         self.pool.start()
+    
+    @staticmethod
+    def format_time(timestamp):
+        return timestamp.isoformat("T", "milliseconds").replace(
+            ":", "_"
+        ).replace('.', '_')
 
     def worker(self) -> None:
         while not self.done.is_set():
@@ -51,8 +60,8 @@ class BaseWorker:
                 )
                 try:
                     self.run_on_images(imgs)
-                except Exception as e:
-                    print(e)
+                except Exception as err:
+                    logger.error(f'Error in work: {err}', exc_info=True)
                 finally:
                     self.queue.task_done()
             except Empty as e:
@@ -69,14 +78,30 @@ class BaseWorker:
     def run_on_images(self, imgs):
         timestamp = datetime.now(TIMEZONE)
         try:
+            start_time_ns = perf_counter_ns()
             results = self.pipeline(imgs, timestamp)
             if self.debug:
                 self.log_debug(timestamp, results, imgs)
             if self.send:
                 self.send_results(timestamp, results, imgs)
-                
-        except Exception:
-            import ipdb; ipdb.set_trace()
+            end_time_ns = perf_counter_ns()
+            time_spent_ns = end_time_ns - start_time_ns
+            time_spent_ms = time_spent_ns / 1e6
+            if self.pipeline_n_calls % self.pipeline_time_logging_period == 0:
+                n_imgs = len([i for i in imgs if i is not None])
+                logger.info(
+                    f"Pipeline inference on {n_imgs} images took {time_spent_ms:.1f} ms"
+                )
+            self.pipeline_n_calls += 1
+        except Exception as err:
+            logger.error(f'Error in pipeline: {err}', exc_info=True)
+            import ipdb; ipdb.set_trace() # For debugging only
+            results = self.pipeline(imgs, timestamp)
+            if self.debug:
+                self.log_debug(timestamp, results, imgs)
+            if self.send:
+                self.send_results(timestamp, results, imgs)
+            end_time_ns = perf_counter_ns()
     
     def pipeline(self, imgs):
         raise NotImplementedError

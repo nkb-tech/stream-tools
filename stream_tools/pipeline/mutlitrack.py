@@ -35,6 +35,7 @@ class MultiTrackWorker(BaseWorker):
     _TIMEOUT = 2
 
     def __init__(self, 
+                 start_timestamp: datetime,
                  dataloader: BaseStreamLoader,
                  detector: Detector,
                  tracker_cfg: dict,
@@ -46,6 +47,7 @@ class MultiTrackWorker(BaseWorker):
         self.device = device
         self.cams_cfg = cams_cfg
         self.inf_cfg = inf_cfg
+        self.pipeline_time_logging_period = inf_cfg['pipeline_logging_period']
         # Streams
         logger.info(f"Initializing stream loader...")
         self.dataloader = dataloader
@@ -57,20 +59,22 @@ class MultiTrackWorker(BaseWorker):
         self.detector.initialize()
         logger.info(f"Detector initialized")
         # Trackers
+        tracker_cfg['device'] = torch.device(tracker_cfg['device'])
+        tracker_cfg['reid_weights'] = Path(tracker_cfg['reid_weights']) if tracker_cfg['reid_weights'] is not None else None
+        self.trackers_time_logging_period = tracker_cfg.pop('time_logging_period')
         self.trackers = {
-            cam_id: bx.create_tracker(**tracker_cfg)
-            for cam_id in self.cams_cfg.cam_ids
+            i: bx.create_tracker(**tracker_cfg)
+            for i in range(len(self.cams_cfg.cam_ids))
         }
         self.poses = {cam_id: dict() for cam_id in self.cams_cfg.cam_ids}
+        self.trackers_n_calls = 0
         logger.info(f"Trackers initialized")
         # Debug
         self.debug = debug
         if self.debug:
             self.inf_cfg["debug"]["save_img_path"] = Path(
                 self.inf_cfg["debug"]["save_img_path"]
-            ) / datetime.now().isoformat("T", "seconds").replace(
-                ":", "_"
-            )
+            ) / self.format_time(start_timestamp)
             logger.info(
                 f"Debug mode: ON, saving data to {self.inf_cfg['debug']['save_img_path']}"
             )
@@ -99,32 +103,37 @@ class MultiTrackWorker(BaseWorker):
         return results
 
     def run_trackers(self, dets, imgs):
+        # TODO Check tracking vs detection results
+        start_time_ns = perf_counter_ns()
         track_res = defaultdict(list)
-        for i, ((cam_id, tracker), det, img) in enumerate(zip(self.trackers.items(), dets, imgs)):
+        n_dets = 0
+        for (i, tracker), det, img in zip(self.trackers.items(), dets, imgs):
             if len(det) == 0:
                 det = np.empty((0, 6))
             if img is None:
                 continue
+            n_dets += len(det)
             tracks = tracker.update(det, img)
             img_h, img_w, _ = img.shape
             if tracks.shape[0] != 0:
-                xyxys = tracks[:, 0:4]
-                xywhn = xyxys.copy()
-                xywhn[:, 0] = np.sum(xyxys[:, [0,2]], axis=1) / 2 / img_w
-                xywhn[:, 1] = np.sum(xyxys[:, [1,3]], axis=1) / 2 / img_h
-                xywhn[:, 2] = (xyxys[:, 2] - xyxys[:, 0]) / img_w
-                xywhn[:, 3] = (xyxys[:, 3] - xyxys[:, 1]) / img_h
-                tracks[:, 0:4] = xywhn # [xcn, ycn, wn, hn, id, conf, class, index (from detections)]
-                track_res[cam_id] = (tracks, i)
-        
+                tracks[:, [0,2]] = np.clip(tracks[:, [0,2]], 0, img_w)
+                tracks[:, [1,3]] = np.clip(tracks[:, [1,3]], 0, img_h)
+                track_res[i] = tracks # [xtl, ytl, xbr, ybr, id, conf, class, index (from detections)]
+        end_time_ns = perf_counter_ns()
+        time_spent_ns = end_time_ns - start_time_ns
+        time_spent_ms = time_spent_ns / 1e6
+        if self.trackers_n_calls % self.trackers_time_logging_period == 0:
+            n_imgs = len([i for i in imgs if i is not None])
+            logger.info(
+                f"Trackers inference on {n_imgs} images and {n_dets} detections took {time_spent_ms:.1f} ms"
+            )
+        self.trackers_n_calls += 1
         return track_res
                             
 
     def log_debug(self, timestamp, results, imgs):
         # TODO rewrite
-        timestamp_str = timestamp.isoformat("T", "milliseconds").replace(
-            ":", "_"
-        ).replace('.', '_')
+        timestamp_str = self.format_time(timestamp)
         tracks = results['tracks']
         dets = results['dets']
         for i, (tracks, cam_idx) in enumerate(tracks):
@@ -139,8 +148,8 @@ class MultiTrackWorker(BaseWorker):
                     ),
                     img,
                 )
-            except Exception as e:
-                logger.critical(img.shape, e)
+            except Exception as err:
+                logger.error(f'Error in image saving: {img.shape}, {err}', exc_info=True)
             labels_str = []
             for track in tracks: # [xc, yc, wn, hn, id, conf, class, index (from detections)]
                 xcn, ycn, wn, hn, id_obj, conf, label, ind = track
@@ -164,8 +173,8 @@ class MultiTrackWorker(BaseWorker):
                         ),
                         crop
                     )
-                except Exception as e:
-                    logger.warning(crop.shape, track, img.shape, e)
+                except Exception as err:
+                    logger.error(f'Error in image saving: {crop.shape}, {track}, {img.shape}, {err}', exc_info=True)
             with (
                 self.save_img_path
                 / "labels"
@@ -192,10 +201,11 @@ def main():
     cams = args.cam
     log_path = args.log_path
     debug = args.debug
+    start_timestamp = datetime.now()
     Path(log_path).mkdir(exist_ok=True, parents=True)
     logging.basicConfig(
         level=logging.DEBUG,
-        filename=f"{log_path}/{TIMEZONE.localize(datetime.now()).isoformat('T', 'seconds').replace(':', '_')}_logs.log",
+        filename=f"{log_path}/{TIMEZONE.localize(start_timestamp).isoformat('T', 'seconds').replace(':', '_')}_logs.log",
         filemode="w",
         format="%(asctime)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -204,7 +214,7 @@ def main():
         cfg = yaml.safe_load(f)
     with open(cams, "r") as f:
         cams_cfg = yaml.safe_load(f)
-    worker = MultiTrackWorker(cfg, cams_cfg, debug)
+    worker = MultiTrackWorker(start_timestamp, cfg, cams_cfg, debug)
     worker.run()
     
 
