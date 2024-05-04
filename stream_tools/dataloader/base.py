@@ -3,8 +3,6 @@ import time
 from threading import Thread
 from typing import Union
 
-import cv2
-
 logger = logging.getLogger(__name__)
 
 
@@ -33,7 +31,7 @@ class BaseStreamLoader:
         # Save arguments
         self.buffer_length = buffer_length  # max buffer length
         self.vid_fps = vid_fps
-        self.max_first_attempts_to_reconnect = (max_first_attempts_to_reconnect)
+        self.max_first_attempts_to_reconnect = max_first_attempts_to_reconnect
         self.first_wait_time = first_wait_time
         self.second_wait_time = second_wait_time
         self.running = True  # running flag for Thread
@@ -45,12 +43,22 @@ class BaseStreamLoader:
         self.fps = [float('inf')] * self.n  # fps of each stream
         self.frames = [0] * self.n  # number of frames in each stream
         self.threads = [None] * self.n  # buffer stored streams
-        self.shape = [[] for _ in range(self.n)]
+        self.shape = [[] for _ in range(self.n)]  # shape of image frames
         self.caps = [None] * self.n  # video capture objects
-        self.started = [0] * self.n
+        self.started = [True] * self.n  # stream started seccessfully or not
+        self.attempts = [0] * self.n  # number of attempts for connect
+
+    def check_attempts(self, i: int, skip_first: bool=False) -> None:
+        """Sleep depends on number of attempts."""
+        if self.attempts[i] == 0 and skip_first:
+            return
+        elif self.attempts[i] < self.max_first_attempts_to_reconnect:
+            time.sleep(self.first_wait_time)
+        else:
+            time.sleep(self.second_wait_time)
 
     def initialize(self):
-        # Create a thread for each source and start it
+        """Create a thread for each source and start it."""
         for i, s in enumerate(self.sources):  # index, source
             # Start thread to read frames from video stream
             self.threads[i] = Thread(
@@ -59,23 +67,27 @@ class BaseStreamLoader:
                 daemon=True,
             )
             self.threads[i].start()
-        self.new_fps = (min(self.fps) if isinstance(self.vid_fps, str) and self.vid_fps == 'auto' else self.vid_fps
-                        )  # fps alignment
+        self.new_fps = (
+            min(self.fps)
+            if isinstance(self.vid_fps, str) and self.vid_fps == 'auto'
+            else self.vid_fps
+        )  # fps alignment
         logger.info('')  # newline
 
     @property
     def bs(self):
+        """Returns number of streams."""
         return self.__len__()
 
-    def add_source(self, source: str):
+    def add_source(self, source: str) -> int:
+        """Add new source to process."""
         i = len(self.threads)
         self.imgs.append(None)
         self.fps.append(float('inf'))
         self.frames.append(0)
-        # self.threads.append(None)
         self.shape.append([])
         self.caps.append(None)
-        self.started.append(0)
+        self.started.append(False)
         self.threads.append(Thread(
             target=self.update,
             args=([i, source]),
@@ -84,7 +96,8 @@ class BaseStreamLoader:
         self.threads[i].start()
         return i
 
-    def close_source(self, source: Union[str, int]):
+    def close_source(self, source: int) -> None:
+        """Delete source from processing."""
         # TODO check source and finish func
         self.threads = self.threads[:source] + self.threads[source + 1:]
         self.imgs = self.imgs[:source] + self.imgs[source + 1:]
@@ -93,8 +106,9 @@ class BaseStreamLoader:
         if self.threads[source].is_alive():
             self.threads[source].join(timeout=5)  # Add timeout
 
-    def update(self, i, source):
-        raise NotImplementedError('Implement update function in stream loader class')
+    def update(self, i: int, source: str) -> None:
+        """Read stream `i` frames in daemon thread."""
+        pass
 
     def close(self):
         """Close stream loader and release resources."""
@@ -102,12 +116,11 @@ class BaseStreamLoader:
         for thread in self.threads:
             if thread.is_alive():
                 thread.join(timeout=5)  # Add timeout
-        for (cap) in (self.caps):  # Iterate through the stored VideoCapture objects
+        for cap in self.caps:  # Iterate through the stored VideoCapture objects
             try:
                 cap.release()  # release video capture
             except Exception as e:
                 logger.warning(f'WARNING ⚠️ Could not release VideoCapture object: {e}')
-        # cv2.destroyAllWindows()
 
     def __iter__(self):
         """Iterates through image feed and re-opens unresponsive streams."""
@@ -125,10 +138,9 @@ class BaseStreamLoader:
         for i, x in enumerate(self.imgs):
             # If image is not available
             if not x:
-                if not self.threads[i].is_alive() or cv2.waitKey(1) == ord('q'):  # q to quit
+                if not self.threads[i].is_alive():
                     self.close()
                     raise StopIteration
-                # logger.warning(f"WARNING ⚠️ Waiting for stream {i}")
                 im = None
             # Get the last element from buffer
             else:
@@ -142,3 +154,7 @@ class BaseStreamLoader:
     def __len__(self):
         """Return the length of the sources object."""
         return len(self.sources)  # 1E12 frames = 32 streams at 30 FPS for 30 years
+
+    def init_stream(self, stream: str, i: int,  device: str='cpu') -> bool:
+        """Init stream and fill the main info about it."""
+        pass

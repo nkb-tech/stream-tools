@@ -9,6 +9,8 @@ services:
     tty: true        # docker run -t
     container_name: stream_tools
     shm_size: '2gb'
+    volumes:
+      - ./:/usr/src/app
     deploy:
       resources:
         limits:
