@@ -45,19 +45,19 @@ class MultiTrackWorker(BaseWorker):
         self.cams_cfg = cams_cfg
         self.inf_cfg = inf_cfg
         # Streams
-        logger.info(f'Initializing stream loader...')
+        logger.info('Initializing stream loader...')
         self.dataloader = dataloader
         self.dataloader.initialize()
-        logger.info(f'Stream loader initialized')
+        logger.info('Stream loader initialized')
         # Models
         self.detector = detector
         self.names = self.detector.names
         self.detector.initialize()
-        logger.info(f'Detector initialized')
+        logger.info('Detector initialized')
         # Trackers
         self.trackers = {cam_id: bx.create_tracker(**tracker_cfg) for cam_id in self.cams_cfg.cam_ids}
         self.poses = {cam_id: dict() for cam_id in self.cams_cfg.cam_ids}
-        logger.info(f'Trackers initialized')
+        logger.info('Trackers initialized')
         # Debug
         self.debug = debug
         if self.debug:
@@ -71,7 +71,7 @@ class MultiTrackWorker(BaseWorker):
                 (save_img_path / 'crops' / str(cam_id)).mkdir(exist_ok=True, parents=True)
             self.save_img_path = save_img_path
         else:
-            logger.info(f'Debug mode: OFF')
+            logger.info('Debug mode: OFF')
 
         super(MultiTrackWorker, self).__init__(send, debug)
 
@@ -108,7 +108,6 @@ class MultiTrackWorker(BaseWorker):
         # TODO rewrite
         timestamp_str = timestamp.isoformat('T', 'milliseconds').replace(':', '_').replace('.', '_')
         tracks = results['tracks']
-        dets = results['dets']
         for i, (tracks, cam_idx) in enumerate(tracks):
             img = imgs[cam_idx]
             img_h, img_w, _ = img.shape

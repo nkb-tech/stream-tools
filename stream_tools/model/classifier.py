@@ -48,7 +48,7 @@ class YoloClassifier:
     def inference(self, imgs: Any):
         start_time_ns = perf_counter_ns()
         correct_frame_idx = []
-        if type(imgs) != list:
+        if not isinstance(imgs, list):
             imgs = [imgs]
             single = True
         else:

@@ -51,7 +51,7 @@ class BaseWorker:
                 finally:
                     self.queue.task_done()
             except Empty as e:
-                pass
+                print(e)
         return
 
     def __del__(self):

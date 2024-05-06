@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 
 
-@torch.compile(dynamic=True, backend="eager")
+@torch.compile(dynamic=True, backend='eager')
 def yuv_to_rgb(frames: Tensor) -> Tensor:
     """Converts YUV BCHW dims torch tensor to RGB BCHW dims torch tensor
 

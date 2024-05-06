@@ -5,5 +5,4 @@ from .torio_loader import TorioLoader
 __all__ = [
     'BaseStreamLoader',
     'OpenCVLoader',
-    'TorioLoader',
-]
+    'TorioLoader', ]

@@ -10,7 +10,7 @@ from stream_tools.dataloader import BaseStreamLoader
 
 class OpenCVLoader(BaseStreamLoader):
 
-    def init_stream(self, stream: str, i: int, device: str='cpu') -> bool:
+    def init_stream(self, stream: str, i: int, device: str = 'cpu') -> bool:
         """Init stream and fill the main info about it."""
         assert 'cpu' in device, f'Only cpu device now supported, got {device}.'
         success, im = False, None
