@@ -3,12 +3,11 @@ from collections import deque
 
 import torch
 from torchaudio.io import StreamReader
-from torchaudio.utils import ffmpeg_utils
 
 logger = logging.getLogger(__name__)
 
 from stream_tools.dataloader import BaseStreamLoader
-from stream_tools.utils import yuv_to_rgb
+from stream_tools.utils import make_ffmpeg_decoder, yuv_to_rgb
 
 
 class TorioLoader(BaseStreamLoader):
@@ -22,19 +21,17 @@ class TorioLoader(BaseStreamLoader):
     ) -> bool:
         """Init stream and fill the main info about it."""
         success, im = False, None
+        gpu_flag = 'cuda' in device
+        decoder = make_ffmpeg_decoder(decoder, gpu_flag)
         decode_config = {
             'frames_per_chunk': 1,
             'buffer_chunk_size': 1,
             'decoder': decoder,
             'decoder_option': {
                 'threads': '0', }, }
-        if 'cuda' in device:
-            decode_config['decoder'] = f'{decoder}_cuvid'
+        if gpu_flag:
             decode_config['hw_accel'] = device
             decode_config['decoder_option']['gpu'] = '0'
-
-        assert decode_config['decoder'] in ffmpeg_utils.get_video_decoders().keys(), \
-            f'Decoder {decoder} is not supported. Please check available decoder.'
         try:
             cap = StreamReader(stream)
             cap.add_video_stream(**decode_config)

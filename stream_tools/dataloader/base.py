@@ -1,6 +1,6 @@
 import logging
 import time
-from threading import Event, Thread
+from threading import Thread
 from typing import Union
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,6 @@ class BaseStreamLoader:
         self.fps = [float('inf')] * self.n  # fps of each stream
         self.frames = [0] * self.n  # number of frames in each stream
         self.threads = [None] * self.n  # buffer stored streams
-        self.events = [None] * self.n  # buffer stored events for threads
         self.shape = [[] for _ in range(self.n)]  # shape of image frames
         self.caps = [None] * self.n  # video capture objects
         self.started = [True] * self.n  # stream started successfully or not
@@ -61,16 +60,13 @@ class BaseStreamLoader:
     def initialize(self):
         """Create a thread for each source and start it."""
         for i, s in enumerate(self.sources):  # index, source
-            self.events[i] = Event()
             # Start thread to read frames from video stream
             self.threads[i] = Thread(
-                target=self.__update,
+                target=self.update,
                 args=([i, s]),
                 daemon=True,
             )
             self.threads[i].start()
-            # Wait for the initialization event to be set
-            self.events[i].wait()
 
         self.new_fps = (min(self.fps) if isinstance(self.vid_fps, str) and self.vid_fps == 'auto' else self.vid_fps
                         )  # fps alignment
@@ -91,7 +87,7 @@ class BaseStreamLoader:
         self.caps.append(None)
         self.started.append(False)
         self.threads.append(Thread(
-            target=self.__update,
+            target=self.update,
             args=([i, source]),
             daemon=True,
         ))
@@ -107,11 +103,6 @@ class BaseStreamLoader:
         self.imgs = self.imgs[:source] + self.imgs[source + 1:]
         if self.threads[source].is_alive():
             self.threads[source].join(timeout=5)  # Add timeout
-
-    def __update(self, i: int, source: str) -> None:
-        """System function that calls `update` for each thread."""
-        self.update(i, source)
-        self.events[i].set()  # Signal that this thread has finished initializing
 
     def update(self, i: int, source: str) -> None:
         """Read stream `i` frames in daemon thread."""

@@ -1,4 +1,5 @@
 import logging
+import os
 from collections import deque
 
 import cv2
@@ -6,16 +7,26 @@ import cv2
 logger = logging.getLogger(__name__)
 
 from stream_tools.dataloader import BaseStreamLoader
+from stream_tools.utils import make_ffmpeg_decoder
 
 
 class OpenCVLoader(BaseStreamLoader):
 
-    def init_stream(self, stream: str, i: int, device: str = 'cpu') -> bool:
+    def init_stream(
+        self,
+        stream: str,
+        i: int,
+        device: str = 'cpu',
+        decoder: str = 'h264',
+    ) -> bool:
         """Init stream and fill the main info about it."""
-        assert 'cpu' in device, f'Only cpu device now supported, got {device}.'
         success, im = False, None
+        gpu_flag = 'cuda' in device
+        ffmpeg_option = f'video_codec;{make_ffmpeg_decoder(decoder, gpu_flag)}'
+        os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = ffmpeg_option
         try:
-            cap = cv2.VideoCapture(stream)
+            cap = cv2.VideoCapture(stream, cv2.CAP_FFMPEG)
+            cap.set(cv2.CAP_PROP_CONVERT_RGB, 1.)
             success, im = cap.read()  # guarantee first frame
         except Exception as ex:
             logger.warning(f'Video stream {i} is unresponsive on start: {ex}, reconnecting...')
