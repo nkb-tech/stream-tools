@@ -9,7 +9,7 @@ AUTHOR_EMAIL = 'anevarko@mail.ru'
 if __name__ == "__main__":
     setup(
         name='stream_tools',
-        version="0.0.1",
+        version="0.0.2",
         packages=find_packages(exclude=['tests', 'scripts']),
         url='https://github.com/nkb-tech/stream-tools',
         license='',

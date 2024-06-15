@@ -5,6 +5,7 @@ import cv2
 import time
 import logging
 from collections import deque
+from time import perf_counter_ns
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,10 @@ class OpenCVLoader(BaseStreamLoader):
         attempt = 0
         n, f = 0, self.frames[i]  # frame number, frame array
         self.started[i] = 1
+        t1 = perf_counter_ns()
         while self.running and n < (f - 1):  # and cap.isOpened()
+            self.times[i].append((perf_counter_ns() - t1)/1e6)
+            t1 = perf_counter_ns()
             success = (
                 cap.grab()
             )  # .read() = .grab() followed by .retrieve()

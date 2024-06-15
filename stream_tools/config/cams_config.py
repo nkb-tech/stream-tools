@@ -1,7 +1,9 @@
 import logging
 import pandas as pd
+import numpy as np
 import requests as re
 import json
+import cv2
 
 from stream_tools.config.base_config import BaseConfig
 
@@ -93,3 +95,25 @@ class CamsConfigPerimeter(CamsConfig):
     @property
     def resolution_wh(self):
         return self.cams.wh.values
+        
+        
+class CamsConfigBEV(CamsConfig):
+    def __init__(self, cfg):
+        super(CamsConfigBEV, self).__init__(cfg)
+        perimeter_info = {
+            'transform_mtx': [],
+        }
+        for _, params in self.cameras.items():
+            perimeter_info['transform_mtx'].append(np.load(params.get('transform_mtx_path')))
+        perimeter_info = pd.DataFrame(perimeter_info)
+        self.cams = pd.concat([self.cams, perimeter_info], axis=1)
+        self.intrinsic_mtx = np.load(cfg['intrinsic_mtx'])
+        self.dist_mtx = np.load(cfg['dist_mtx'])
+        self.masks = cv2.imread(cfg['masks_path'])
+        self.dsize = tuple(self.masks.shape[:-1][::-1])
+        self.slot_obbs = np.load(cfg['parking_spaces'])
+    
+    @property
+    def transform_mtx(self):
+        return self.cams.transform_mtx.values
+            

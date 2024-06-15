@@ -103,7 +103,6 @@ class MultiTrackWorker(BaseWorker):
         return results
 
     def run_trackers(self, dets, imgs):
-        # TODO Check tracking vs detection results
         start_time_ns = perf_counter_ns()
         track_res = defaultdict(list)
         n_dets = 0

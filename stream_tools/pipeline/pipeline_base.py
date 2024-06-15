@@ -74,6 +74,8 @@ class BaseWorker:
     def run(self):
         for imgs in self.dataloader:
             self.queue.put(imgs)
+            # if self.pipeline_n_calls % 10 == 0:
+            #     logger.info(f'Queue length: {self.queue.qsize()}')
 
     def run_on_images(self, imgs):
         timestamp = datetime.now(TIMEZONE)
