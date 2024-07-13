@@ -1,6 +1,7 @@
 import logging
 from time import perf_counter_ns
 from typing import Any
+import io
 
 import cv2
 import numpy as np
@@ -12,14 +13,28 @@ logger = logging.getLogger(__name__)
 
 class Detector:
     def __init__(self, cfg):
-        self.model = YOLO(model=cfg["model_path"], task="detect")
+        if 'encryption_key' in cfg.keys():
+            from cryptography.fernet import Fernet
+
+            with open(cfg["model_path"], 'rb') as model_file:
+                model_bytes = model_file.read()
+            cipher = Fernet(cfg['encryption_key'])
+            decrypted_model = cipher.decrypt(model_bytes)
+
+            self.model = YOLO()
+            self.model.load_state_dict(
+                torch.load(io.BytesIO(decrypted_model),
+                           map_location=torch.device(cfg['device'])),
+                strict=False)
+        else:
+            self.model = YOLO(model=cfg["model_path"], task="detect")
         self.device = torch.device(cfg['device'])
         self.cfg = cfg
         self.classes = self.cfg.get('classes', None)
     
     def initialize(self):
         # Dummy inference for model warmup
-        for _ in range(100):
+        for _ in range(5):
             dummy_imgs = [
                 np.random.randint(
                     low=0,
@@ -36,7 +51,7 @@ class Detector:
                 conf=self.cfg["inference_conf"],
                 stream=False,
                 verbose=False,
-                half=True,
+                half=False,
                 classes=self.classes
             )
         self.time_logging_period = self.cfg["time_logging_period"]
