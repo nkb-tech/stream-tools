@@ -26,7 +26,7 @@ class BaseWorker:
                  send: bool = False,
                  debug: bool = False):
         # Init separate process
-        self.queue = Queue(maxsize=30)
+        self.queue = Queue(maxsize=1)
         self.done = Event()
         self.pool = Thread(target=self.worker, daemon=True)
         self.debug = debug

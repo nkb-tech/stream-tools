@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import torch
 from ultralytics import YOLO
+from ultralytics.nn.tasks import DetectionModel
 
 logger = logging.getLogger(__name__)
 
@@ -14,24 +15,57 @@ logger = logging.getLogger(__name__)
 class Detector:
     def __init__(self, cfg):
         if 'encryption_key' in cfg.keys():
-            from cryptography.fernet import Fernet
-
-            with open(cfg["model_path"], 'rb') as model_file:
-                model_bytes = model_file.read()
-            cipher = Fernet(cfg['encryption_key'])
-            decrypted_model = cipher.decrypt(model_bytes)
-
-            self.model = YOLO()
+            # Initialize model from non-trained placeholder
+            self.model = YOLO(model=cfg["placeholder"], task="detect")
+            weights = self.decrypt_model(cfg["model_path"], cfg["encryption_key"])
+            state_dict = torch.load(weights, torch.device(cfg['device']))
             self.model.load_state_dict(
-                torch.load(io.BytesIO(decrypted_model),
-                           map_location=torch.device(cfg['device'])),
-                strict=False)
+                            state_dict,
+                            strict=True)            
+        # if cfg.get('model_type') is not None:
+        #     if cfg['model_type'] == 'torchscript':
+        #         raise NotImplementedError
+        #         if 'encryption_key' in cfg.keys():
+        #             model = self.decrypt_model(cfg["model_path"], cfg["encryption_key"])
+        #         else:
+        #             model = cfg['model_path']
+        #         self.model = torch.load(model)
+        #     elif cfg['model_type'] == 'yolo_raw':
+        #         raise NotImplementedError
+        #         if cfg.get('model_cfg') is None:
+        #             raise KeyError(
+        #                 "Config must have model_cfg as in https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/models/v8/yolov8.yaml"
+        #             )
+        #         if 'encryption_key' in cfg.keys():
+        #             weights = self.decrypt_model(cfg["model_path"], cfg["encryption_key"])
+        #         else:
+        #             with open(cfg["model_path"], 'rb') as model_file:
+        #                 weights = io.BytesIO(model_file.read())
+        #         model = DetectionModel(cfg['model_cfg'])
+        #         model.load_state_dict(
+        #             torch.load(weights, cfg['device']),
+        #             strict=True)
+
+            # else:
+                # self.model = YOLO(model=cfg["model_path"], task="detect")
+            # self.model.load_state_dict(
+            #     torch.load(io.BytesIO(decrypted_model),
+            #             map_location=torch.device(cfg['device'])),
+            #     strict=False)
         else:
             self.model = YOLO(model=cfg["model_path"], task="detect")
         self.device = torch.device(cfg['device'])
         self.cfg = cfg
         self.classes = self.cfg.get('classes', None)
     
+    def decrypt_model(self, model_path, encryption_key):
+        from cryptography.fernet import Fernet
+        with open(model_path, 'rb') as model_file:
+            model_bytes = model_file.read()
+        cipher = Fernet(encryption_key)
+        decrypted_model = cipher.decrypt(model_bytes)
+        return io.BytesIO(decrypted_model)
+
     def initialize(self):
         # Dummy inference for model warmup
         for _ in range(5):

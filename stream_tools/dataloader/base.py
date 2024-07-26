@@ -154,11 +154,7 @@ class BaseStreamLoader:
         for i, x in enumerate(self.imgs):
             # If image is not available
             if not x:
-                if not self.threads[i].is_alive() or cv2.waitKey(
-                    1
-                ) == ord(
-                    "q"
-                ):  # q to quit
+                if not self.threads[i].is_alive():
                     self.close()
                     raise StopIteration
                 # logger.warning(f"WARNING ⚠️ Waiting for stream {i}")
