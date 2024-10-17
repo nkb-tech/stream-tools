@@ -7,6 +7,8 @@ import numpy as np
 import torch
 from ultralytics import YOLO
 
+from boxmot.trackers.deepocsort.deepocsort import DeepOcSort
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +18,11 @@ class Detector:
         self.device = torch.device(cfg['device'])
         self.cfg = cfg
         self.classes = self.cfg.get('classes', None)
+        tracker_cfg = cfg.get("tracker_cfg", None)
+        if tracker_cfg is not None:
+            self.tracker = DeepOcSort(**tracker_cfg)
+        else:
+            self.tracker = None
     
     def initialize(self):
         # Dummy inference for model warmup
@@ -73,6 +80,8 @@ class Detector:
         dets = [[] for _ in range(len(imgs))]
         for idx, det in zip(correct_frame_idx, results):
             dets[idx] = det.boxes.data.cpu().numpy()
+            if self.tracker is not None:
+                dets[idx] = self.tracker.update(dets[idx], imgs[idx])
         end_time_ns = perf_counter_ns()
         time_spent_ns = end_time_ns - start_time_ns
         time_spent_ms = time_spent_ns / 1e6
