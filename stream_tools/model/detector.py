@@ -26,7 +26,7 @@ class Detector:
     
     def initialize(self):
         # Dummy inference for model warmup
-        for _ in range(100):
+        for _ in range(5):
             dummy_imgs = [
                 np.random.randint(
                     low=0,
@@ -43,7 +43,7 @@ class Detector:
                 conf=self.cfg["inference_conf"],
                 stream=False,
                 verbose=False,
-                half=True,
+                half=False,
                 classes=self.classes
             )
         self.time_logging_period = self.cfg["time_logging_period"]
@@ -74,14 +74,23 @@ class Detector:
             conf=self.cfg["inference_conf"],
             stream=False,
             verbose=False,
-            half=True,
+            half=False,
             classes=self.classes
         )
         dets = [[] for _ in range(len(imgs))]
         for idx, det in zip(correct_frame_idx, results):
             dets[idx] = det.boxes.data.cpu().numpy()
+            print("detector", dets[idx])
             if self.tracker is not None:
+                # import ipdb; ipdb.set_trace()
                 dets[idx] = self.tracker.update(dets[idx], imgs[idx])
+                # print("tracker", dets[idx])
+                if len(dets[idx]) == 0:
+                    dets[idx] = np.array(torch.empty(0,6))
+                else:
+                    dets[idx] = dets[idx][:,[0,1,2,3,5,6]]
+                # except: pass
+                # dets[idx][:4] *= (*imgs_to_infer[0].shape[:2], *imgs_to_infer[0].shape[:2])
         end_time_ns = perf_counter_ns()
         time_spent_ns = end_time_ns - start_time_ns
         time_spent_ms = time_spent_ns / 1e6
@@ -89,4 +98,5 @@ class Detector:
             logger.info(
                 f"Detector inference on {len(correct_frame_idx)} images took {time_spent_ms:.1f} ms"
             )
+
         return dets
