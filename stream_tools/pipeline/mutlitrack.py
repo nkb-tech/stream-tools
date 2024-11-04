@@ -43,7 +43,7 @@ class MultiTrackWorker(BaseWorker):
                  cams_cfg: BaseConfig,
                  inf_cfg: dict,
                  send: bool = False,
-                 debug: bool = False):
+                 debug: int = 0):
         self.device = device
         self.cams_cfg = cams_cfg
         self.inf_cfg = inf_cfg

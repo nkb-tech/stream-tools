@@ -24,7 +24,7 @@ class BaseWorker:
 
     def __init__(self, 
                  send: bool = False,
-                 debug: bool = False):
+                 debug: int = 0):
         # Init separate process
         self.queue = Queue(maxsize=30)
         self.done = Event()
